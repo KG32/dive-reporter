@@ -3,55 +3,52 @@ use std::error::Error;
 use std::fs;
 use serde::Deserialize;
 
-static DEV_FILE_PATH: &str = "/Users/kubagroblewski/Documents/dive-reporter-tmp/Perdix 2[A76240BD]#61_2023-10-28.uddf";
-
-struct DataPoint {
-    time: String,
-    depth: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct Document {
+#[derive(Deserialize)]
+pub struct UDDFDoc {
     #[serde(rename = "profiledata")]
-    profile_data: Profiledata,
+    pub profile_data: ProfileDataElem,
 }
 
-#[derive(Debug, Deserialize)]
-struct Profiledata {
+#[derive(Deserialize)]
+pub struct ProfileDataElem {
     #[serde(rename = "repetitiongroup")]
-    repetition_group: RepetitionGroup,
+    pub repetition_group: RepetitionGroupElem,
+}
+
+#[derive(Deserialize)]
+pub struct RepetitionGroupElem {
+    pub dive: DiveElem,
+}
+
+#[derive(Deserialize)]
+pub struct DiveElem {
+    pub samples: SampleElem,
+}
+
+#[derive(Deserialize)]
+pub struct SampleElem {
+    #[serde(rename = "waypoint")]
+    pub waypoints: Vec<WaypointElem>,
 }
 
 #[derive(Debug, Deserialize)]
-struct RepetitionGroup {
-    dive: Dive,
-}
-
-#[derive(Debug, Deserialize)]
-struct Dive {
-    samples: Vec<Sample>,
-}
-
-#[derive(Debug, Deserialize)]
-struct Sample {
-    waypoint: Vec<Waypoint>,
-}
-
-#[derive(Debug, Deserialize)]
-struct Waypoint {
+pub struct WaypointElem {
     #[serde(rename = "divetime")]
-    dive_time: u64,
-    depth: f32,
+    pub dive_time: usize,
+    pub depth: f32,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct DecostopElem {
 
-pub fn parse_file() -> Result<(), Box<dyn Error>> {
+}
+
+pub fn parse_file(file_path: &str) -> Result<UDDFDoc, Box<dyn Error>> {
     println!("Parse file");
-    let tmp_file_path = DEV_FILE_PATH;
-    let file_content = read_file_content(tmp_file_path)?;
-    construct_document(&file_content);
+    let file_content = read_file_content(file_path)?;
+    let document = construct_from_uddf(&file_content)?;
 
-    Ok(())
+    Ok(document)
 }
 
 fn read_file_content(path: &str) -> Result<String, io::Error> {
@@ -62,7 +59,7 @@ fn read_file_content(path: &str) -> Result<String, io::Error> {
     Ok(file_content)
 }
 
-fn construct_document(content: &str) {
-    let d: Document = quick_xml::de::from_str(content).unwrap();
-    println!("{:?}", d);
+fn construct_from_uddf(content: &str) -> Result<UDDFDoc, Box<dyn Error>> {
+    let document: UDDFDoc = quick_xml::de::from_str(content)?;
+    Ok(document)
 }

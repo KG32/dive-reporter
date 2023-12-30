@@ -1,21 +1,15 @@
+mod stats;
 mod parser;
 
-pub struct DiveStats {
-    total_no: usize,
-    total_mins: usize,
-    depth_max: u16,
-}
+use stats::Stats;
 
-impl DiveStats {
-    pub fn new() -> DiveStats {
-        DiveStats {
-            total_no: 0,
-            total_mins: 0,
-            depth_max: 0,
-        }
-    }
-}
+// static DEV_FILE_PATH: &str = "/Users/kubagroblewski/Documents/dive-reporter-tmp/Perdix 2[A76240BD]#61_2023-10-28.uddf";
 
 pub fn run() {
-    parser::parse_file();
+    let _ = match Stats::from_dir("test") {
+        Ok(_) => { println!("done.")},
+        Err(err) => {
+            println!("Error: {}", err);
+        }
+    };
 }
