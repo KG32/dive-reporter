@@ -3,16 +3,20 @@ use crate::parser::{self, UDDFDoc};
 
 static DEV_FILE_PATH: &str = "/Users/kubagroblewski/Documents/dive-reporter-tmp/Perdix 2[A76240BD]#61_2023-10-28.uddf";
 
+pub type Depth = f32;
+pub type Seconds = usize;
+
 pub struct Stats {
     total_no: usize,
-    total_time: usize,
-    depth_max: f32,
+    total_time: Seconds,
+    depth_max: Depth,
 }
 
 #[derive(Debug)]
 pub struct DiveStats {
-    total_time: usize,
-    depth_max: f32,
+    total_time: Seconds,
+    depth_max: Depth,
+    time_in_deco: Seconds,
 }
 
 impl DiveStats {
@@ -20,15 +24,20 @@ impl DiveStats {
         DiveStats {
             total_time: 0,
             depth_max: 0.0,
+            time_in_deco: 0,
         }
     }
 
-    fn update_depth_max(&mut self, depth: f32) {
+    fn update_depth_max(&mut self, depth: Depth) {
         self.depth_max = depth;
     }
 
-    fn update_total_time(&mut self, time: usize) {
+    fn update_total_time(&mut self, time: Seconds) {
         self.total_time += time;
+    }
+
+    fn update_time_in_deco(&mut self, time: Seconds) {
+        self.time_in_deco += time;
     }
 }
 
@@ -63,9 +72,21 @@ impl Stats {
             }
             // time
             dive_stats.update_total_time(data_point.dive_time - last_waypoint_time);
-            last_waypoint_time = data_point.dive_time;
             // decostop
+            match data_point.decostops {
+                Some(decostops) => {
+                    let mandatory_stop_index = decostops
+                        .iter()
+                        .position(|ds| ds.kind == "mandatory");
+                    if let Some(_) = mandatory_stop_index {
+                        dive_stats.update_time_in_deco(data_point.dive_time - last_waypoint_time);
+                    }
+                },
+                None => (),
+            }
 
+            // update last waypoint time
+            last_waypoint_time = data_point.dive_time;
         }
 
         Ok(dive_stats)

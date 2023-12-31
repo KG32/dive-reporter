@@ -2,6 +2,7 @@ use std::io::{self, Read};
 use std::error::Error;
 use std::fs;
 use serde::Deserialize;
+use crate::stats;
 
 #[derive(Deserialize)]
 pub struct UDDFDoc {
@@ -34,17 +35,20 @@ pub struct SampleElem {
 #[derive(Debug, Deserialize)]
 pub struct WaypointElem {
     #[serde(rename = "divetime")]
-    pub dive_time: usize,
-    pub depth: f32,
+    pub dive_time: stats::Seconds,
+    pub depth: stats::Depth,
+    #[serde(rename = "decostop")]
+    pub decostops: Option<Vec<DecostopElem>>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct DecostopElem {
-
+    #[serde(rename = "@kind")]
+    pub kind: String,
 }
 
 pub fn parse_file(file_path: &str) -> Result<UDDFDoc, Box<dyn Error>> {
-    println!("Parse file");
+    println!("Parsing file {}", file_path);
     let file_content = read_file_content(file_path)?;
     let document = construct_from_uddf(&file_content)?;
 
