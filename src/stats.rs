@@ -1,8 +1,6 @@
 use std::{error::Error, fs, path::PathBuf};
 use crate::parser::{self, UDDFDoc};
 
-static DEV_FILE_PATH: &str = "/Users/kubagroblewski/Documents/dive-reporter-tmp/Perdix 2[A76240BD]#61_2023-10-28.uddf";
-
 pub type Depth = f32;
 pub type Seconds = usize;
 
@@ -35,21 +33,24 @@ impl Dive {
     }
 }
 
+#[derive(Debug)]
 pub struct Stats {
-    total_no: usize,
-    total_time: Seconds,
+    dives_no: usize,
+    time: Seconds,
     depth_max: Depth,
-    time_in_deco: Seconds,
+    deco_time: Seconds,
+    deco_dives_no: usize,
 }
 
 impl Stats {
     pub fn from_dir(path: &str) -> Result<Stats, Box<dyn Error>> {
         println!("\nDives folder: {}", path);
-        let stats = Stats {
-            total_no: 0,
-            total_time: 0,
+        let mut stats = Stats {
+            dives_no: 0,
+            time: 0,
             depth_max: 0.0,
-            time_in_deco: 0,
+            deco_time: 0,
+            deco_dives_no: 0,
         };
 
         let entries = fs::read_dir(path)?;
@@ -57,26 +58,26 @@ impl Stats {
             let entry = entry?;
             let entry_path = entry.path();
             if (Self::validate_uddf_target(&entry_path)) {
-                let dive_stats = Self::from_file(entry_path.to_str().unwrap())?;
-            } else {
-                // todo
-                // println!("Skipping {} - not a UDDF file", path.to_str().unwrap());
+                let dive_stats = Self::handle_file(entry_path.to_str().unwrap())?;
+                stats.dives_no += 1;
+                stats.time += dive_stats.total_time;
+                if dive_stats.depth_max > stats.depth_max {
+                    stats.depth_max = dive_stats.depth_max;
+                }
+                if dive_stats.time_in_deco > 0 {
+                    stats.deco_time += dive_stats.time_in_deco;
+                    stats.deco_dives_no += 1;
+                }
             }
         }
 
-        Ok(Stats {
-            total_no: 0,
-            total_time: 0,
-            depth_max: 0.0,
-            time_in_deco: 0,
-        })
+        Ok(stats)
     }
 
-    pub fn from_file(path: &str) -> Result<Dive, Box<dyn Error>> {
-        println!("\nAnalyzing dive: {}", path);
+    fn handle_file(path: &str) -> Result<Dive, Box<dyn Error>> {
+        println!("Analyzing dive: {}", path);
         let test_file = parser::parse_file(path)?;
         let dive_stats = Self::get_dive_stats(test_file)?;
-        println!("\nDive stats: {:?}", dive_stats);
         Ok(dive_stats)
     }
 

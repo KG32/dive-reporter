@@ -25,7 +25,7 @@ impl Config {
 }
 
 pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
-    Stats::from_dir(&config.path)?;
-
+    let stats = Stats::from_dir(&config.path)?;
+    println!("\n Stats: {:#?}", stats);
     Ok(())
 }
