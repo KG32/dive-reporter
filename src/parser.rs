@@ -48,7 +48,6 @@ pub struct DecostopElem {
 }
 
 pub fn parse_file(file_path: &str) -> Result<UDDFDoc, Box<dyn Error>> {
-    println!("Parsing file {}", file_path);
     let file_content = read_file_content(file_path)?;
     let document = construct_from_uddf(&file_content)?;
 

@@ -1,15 +1,31 @@
+#![allow(warnings)]
+
 mod stats;
 mod parser;
 
+use std::error::Error;
+
 use stats::Stats;
 
-// static DEV_FILE_PATH: &str = "/Users/kubagroblewski/Documents/dive-reporter-tmp/Perdix 2[A76240BD]#61_2023-10-28.uddf";
+pub struct Config {
+    pub path: String,
+}
 
-pub fn run() {
-    let _ = match Stats::from_dir("test") {
-        Ok(_) => { println!("done.")},
-        Err(err) => {
-            println!("Error: {}", err);
-        }
-    };
+impl Config {
+    pub fn build(mut args: impl Iterator<Item = String>) -> Result<Config, &'static str> {
+        args.next();
+        let path = match args.next() {
+            Some(arg) => arg,
+            None => return Err("Path missing"),
+        };
+        Ok(Config {
+            path,
+        })
+    }
+}
+
+pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
+    Stats::from_dir(&config.path)?;
+
+    Ok(())
 }
