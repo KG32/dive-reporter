@@ -26,6 +26,6 @@ impl Config {
 
 pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     let stats = Stats::from_dir(&config.path)?;
-    println!("\n Stats: {:#?}", stats);
+    stats.print();
     Ok(())
 }
