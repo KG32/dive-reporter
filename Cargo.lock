@@ -3,9 +3,14 @@
 version = 3
 
 [[package]]
+name = "buehlmann_deco"
+version = "0.1.0"
+
+[[package]]
 name = "dive-reporter"
 version = "0.1.0"
 dependencies = [
+ "buehlmann_deco",
  "quick-xml",
  "serde",
 ]
