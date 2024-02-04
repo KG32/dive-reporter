@@ -50,8 +50,10 @@ pub struct Stats {
     deco_dives_no: usize,
 }
 
+
+pub type GasMixesData = Option<Vec<Mix>>;
 pub struct UDDFData {
-    gas_mixes: Option<Vec<Mix>>,
+    gas_mixes: GasMixesData,
     dives_data: Vec<DiveElem>,
 }
 
@@ -67,8 +69,8 @@ impl Stats {
         };
         let UDDFData { dives_data, gas_mixes } = stats.extract_data_from_file(path)?;
         for dive_data in dives_data {
-            let dive_stats = stats.calc_dive_stats(dive_data)?;
-            stats.update_with_dive_data(dive_stats);
+            let dive = stats.calc_dive_stats(&dive_data, &gas_mixes)?;
+            stats.update_with_dive_data(dive);
         }
 
         Ok(stats)
@@ -93,15 +95,15 @@ impl Stats {
         })
     }
 
-    fn calc_dive_stats(&self, dive_elem: DiveElem) -> Result<Dive, Box<dyn Error>> {
+    fn calc_dive_stats(&self, dive_data: &DiveElem, gas_mixes: &GasMixesData) -> Result<Dive, Box<dyn Error>> {
         let mut dive = Dive::new();
-        let mut deco = zhl16c();
-        let dive_data_points = dive_elem.samples.waypoints;
+        let mut model = zhl16c();
+        let dive_data_points = &dive_data.samples.waypoints;
         let mut last_waypoint_time: usize = 0;
         for data_point in dive_data_points {
             self.process_data_point(
                 &mut dive,
-                &mut deco,
+                &mut model,
                 &data_point,
                 &last_waypoint_time,
             );
@@ -130,14 +132,14 @@ impl Stats {
         // gradient factors
     }
 
-    fn update_with_dive_data(&mut self, dive_stats: Dive) {
+    fn update_with_dive_data(&mut self, dive: Dive) {
         self.dives_no += 1;
-        self.total_time += dive_stats.total_time;
-        if dive_stats.depth_max > self.depth_max {
-            self.depth_max = dive_stats.depth_max;
+        self.total_time += dive.total_time;
+        if dive.depth_max > self.depth_max {
+            self.depth_max = dive.depth_max;
         }
-        if dive_stats.time_in_deco > 0 {
-            self.time_in_deco += dive_stats.time_in_deco;
+        if dive.time_in_deco > 0 {
+            self.time_in_deco += dive.time_in_deco;
             self.deco_dives_no += 1;
         }
     }
