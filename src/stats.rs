@@ -1,4 +1,4 @@
-use std::{error::Error, fs, path::PathBuf, fmt::format, os::macos::raw::stat, ops::Div};
+use std::{error::Error, fs, path::PathBuf, fmt::format};
 use crate::parser::{self, UDDFDoc, DiveElem, WaypointElem};
 use buehlmann_deco::{step, zhl16c};
 use buehlmann_deco::model::ZHLModel;
@@ -55,16 +55,16 @@ impl Stats {
             time_in_deco: 0,
         };
 
-        let dives_data = Self::extract_dives_from_file(path)?;
+        let dives_data = stats.extract_dives_from_file(path)?;
         for dive_data in dives_data {
-            let dive_stats = Self::calc_dive_stats(dive_data)?;
+            let dive_stats = stats.calc_dive_stats(dive_data)?;
             stats.update_with_dive_data(dive_stats);
         }
 
         Ok(stats)
     }
 
-    fn extract_dives_from_file(path: &str) -> Result<Vec<DiveElem>, Box<dyn Error>> {
+    fn extract_dives_from_file(&self, path: &str) -> Result<Vec<DiveElem>, Box<dyn Error>> {
         println!("Extracting dives from UDDF");
         let file = parser::parse_file(path)?;
         let mut dives: Vec<DiveElem> = vec![];
@@ -78,13 +78,13 @@ impl Stats {
         Ok(dives)
     }
 
-    fn calc_dive_stats(dive: DiveElem) -> Result<Dive, Box<dyn Error>> {
+    fn calc_dive_stats(&self, dive: DiveElem) -> Result<Dive, Box<dyn Error>> {
         let mut dive_stats = Dive::new();
         let mut deco = zhl16c();
         let dive_data_points = dive.samples.waypoints;
         let mut last_waypoint_time: usize = 0;
         for data_point in dive_data_points {
-            Self::process_data_point(
+            self.process_data_point(
                 &mut dive_stats,
                 &data_point,
                 &last_waypoint_time,
@@ -97,7 +97,7 @@ impl Stats {
         Ok(dive_stats)
     }
 
-    fn process_data_point(dive_stats: &mut Dive, data_point: &WaypointElem, last_waypoint_time: &usize, model: &mut ZHLModel) -> () {
+    fn process_data_point(&self, dive_stats: &mut Dive, data_point: &WaypointElem, last_waypoint_time: &usize, model: &mut ZHLModel) -> () {
         // max depth
         if data_point.depth > dive_stats.depth_max {
             dive_stats.update_depth_max(data_point.depth);
@@ -108,9 +108,7 @@ impl Stats {
 
         // buehlmann deco
         let air = Gas::new(0.21);// tmp
-        &model.step(&data_point.depth, &step_time, &air);
-        println!("depth: {}, ceil: {}", &data_point.depth, &model.ceiling());
-
+        model.step(&data_point.depth, &step_time, &air);
     }
 
     fn update_with_dive_data(&mut self, dive_stats: Dive) {
