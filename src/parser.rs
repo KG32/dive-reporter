@@ -13,12 +13,13 @@ pub struct UDDFDoc {
 #[derive(Deserialize)]
 pub struct ProfileDataElem {
     #[serde(rename = "repetitiongroup")]
-    pub repetition_group: RepetitionGroupElem,
+    pub repetition_group: Vec<RepetitionGroupElem>,
 }
 
 #[derive(Deserialize)]
 pub struct RepetitionGroupElem {
-    pub dive: DiveElem,
+    #[serde(rename = "dive")]
+    pub dives: Vec<DiveElem>,
 }
 
 #[derive(Deserialize)]
