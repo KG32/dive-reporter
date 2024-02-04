@@ -1,6 +1,7 @@
 use std::io::{self, Read};
 use std::error::Error;
 use std::fs;
+use buehlmann_deco::gas::Gas;
 use serde::Deserialize;
 use crate::stats;
 
@@ -8,6 +9,24 @@ use crate::stats;
 pub struct UDDFDoc {
     #[serde(rename = "profiledata")]
     pub profile_data: ProfileDataElem,
+    #[serde(rename = "gasdefinitions")]
+    pub gas_definitions: GasDefinition,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct GasDefinition {
+    #[serde(rename = "mix")]
+    pub gas_mixes: Option<Vec<Mix>>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Mix {
+    #[serde(rename = "@id")]
+    pub id: String,
+    pub name: String,
+    pub o2: f64,
+    pub n2: Option<f64>,
+    pub he: Option<f64>,
 }
 
 #[derive(Deserialize)]
@@ -38,8 +57,15 @@ pub struct WaypointElem {
     #[serde(rename = "divetime")]
     pub dive_time: stats::Seconds,
     pub depth: stats::Depth,
+    pub switchmix: Option<SwitchMix>,
     #[serde(rename = "decostop")]
     pub decostops: Option<Vec<DecostopElem>>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SwitchMix {
+    #[serde(rename="@ref")]
+    pub gas_ref: String,
 }
 
 #[derive(Debug, Deserialize)]

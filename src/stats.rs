@@ -1,5 +1,5 @@
 use std::{error::Error, fs, path::PathBuf, fmt::format};
-use crate::parser::{self, UDDFDoc, DiveElem, WaypointElem};
+use crate::parser::{self, UDDFDoc, Mix, DiveElem, WaypointElem};
 use buehlmann_deco::{step, zhl16c};
 use buehlmann_deco::model::ZHLModel;
 use buehlmann_deco::gas::Gas;
@@ -9,10 +9,16 @@ pub type Depth = f64;
 pub type Seconds = usize;
 
 #[derive(Debug)]
+pub struct DiveMetadata {
+    last_gas: Gas,
+}
+
+#[derive(Debug)]
 pub struct Dive {
     total_time: Seconds,
     depth_max: Depth,
     time_in_deco: Seconds,
+    metadata: DiveMetadata,
 }
 
 impl Dive {
@@ -21,6 +27,7 @@ impl Dive {
             total_time: 0,
             depth_max: 0.0,
             time_in_deco: 0,
+            metadata: DiveMetadata { last_gas: Gas::new(0.21) }
         }
     }
     fn update_depth_max(&mut self, depth: Depth) {
@@ -43,10 +50,14 @@ pub struct Stats {
     deco_dives_no: usize,
 }
 
+pub struct UDDFData {
+    gas_mixes: Option<Vec<Mix>>,
+    dives_data: Vec<DiveElem>,
+}
+
 impl Stats {
     pub fn from_file(path: &str) -> Result<Stats, Box<dyn Error>> {
         println!("\nFile: {}", path);
-
         let mut stats = Stats {
             dives_no: 0,
             total_time: 0,
@@ -54,8 +65,7 @@ impl Stats {
             deco_dives_no: 0,
             time_in_deco: 0,
         };
-
-        let dives_data = stats.extract_dives_from_file(path)?;
+        let UDDFData { dives_data, gas_mixes } = stats.extract_data_from_file(path)?;
         for dive_data in dives_data {
             let dive_stats = stats.calc_dive_stats(dive_data)?;
             stats.update_with_dive_data(dive_stats);
@@ -64,9 +74,11 @@ impl Stats {
         Ok(stats)
     }
 
-    fn extract_dives_from_file(&self, path: &str) -> Result<Vec<DiveElem>, Box<dyn Error>> {
+    fn extract_data_from_file(&self, path: &str) -> Result<UDDFData, Box<dyn Error>> {
         println!("Extracting dives from UDDF");
         let file = parser::parse_file(path)?;
+
+        let gas_definitions = file.gas_definitions;
         let mut dives: Vec<DiveElem> = vec![];
         let repetition_groups = file
             .profile_data
@@ -75,40 +87,47 @@ impl Stats {
             dives.append(&mut group.dives);
         }
 
-        Ok(dives)
+        Ok(UDDFData {
+            gas_mixes: gas_definitions.gas_mixes,
+            dives_data: dives,
+        })
     }
 
-    fn calc_dive_stats(&self, dive: DiveElem) -> Result<Dive, Box<dyn Error>> {
-        let mut dive_stats = Dive::new();
+    fn calc_dive_stats(&self, dive_elem: DiveElem) -> Result<Dive, Box<dyn Error>> {
+        let mut dive = Dive::new();
         let mut deco = zhl16c();
-        let dive_data_points = dive.samples.waypoints;
+        let dive_data_points = dive_elem.samples.waypoints;
         let mut last_waypoint_time: usize = 0;
         for data_point in dive_data_points {
             self.process_data_point(
-                &mut dive_stats,
+                &mut dive,
+                &mut deco,
                 &data_point,
                 &last_waypoint_time,
-                &mut deco
             );
             // update last waypoint time
             last_waypoint_time = data_point.dive_time;
         }
 
-        Ok(dive_stats)
+        Ok(dive)
     }
 
-    fn process_data_point(&self, dive_stats: &mut Dive, data_point: &WaypointElem, last_waypoint_time: &usize, model: &mut ZHLModel) -> () {
+    fn process_data_point(&self, dive: &mut Dive, model: &mut ZHLModel, data_point: &WaypointElem, last_waypoint_time: &usize) -> () {
         // max depth
-        if data_point.depth > dive_stats.depth_max {
-            dive_stats.update_depth_max(data_point.depth);
+        if data_point.depth > dive.depth_max {
+            dive.update_depth_max(data_point.depth);
         }
+
         // time
         let step_time = data_point.dive_time - last_waypoint_time;
-        dive_stats.update_total_time(step_time);
+        dive.update_total_time(step_time);
 
-        // buehlmann deco
-        let air = Gas::new(0.21);// tmp
-        model.step(&data_point.depth, &step_time, &air);
+        // deco model
+        // @todo real gas used
+        let gas = &dive.metadata.last_gas;
+        model.step(&data_point.depth, &step_time, gas);
+
+        // gradient factors
     }
 
     fn update_with_dive_data(&mut self, dive_stats: Dive) {
