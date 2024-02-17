@@ -1,7 +1,9 @@
 #![allow(warnings)]
 
-mod stats;
+mod common;
 mod parser;
+mod dive;
+mod stats;
 
 use std::error::Error;
 

@@ -1,8 +1,8 @@
 use std::io::{self, Read};
 use std::error::Error;
 use std::fs;
-use buehlmann_deco::gas::Gas;
 use serde::Deserialize;
+use crate::common::{Depth, Seconds};
 use crate::stats;
 
 #[derive(Deserialize)]
@@ -55,8 +55,8 @@ pub struct SampleElem {
 #[derive(Debug, Deserialize)]
 pub struct WaypointElem {
     #[serde(rename = "divetime")]
-    pub dive_time: stats::Seconds,
-    pub depth: stats::Depth,
+    pub dive_time: Seconds,
+    pub depth: Depth,
     pub switchmix: Option<SwitchMix>,
     #[serde(rename = "decostop")]
     pub decostops: Option<Vec<DecostopElem>>,
