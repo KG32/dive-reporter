@@ -1,7 +1,7 @@
 use std::{error::Error, fs, path::PathBuf, fmt::format};
 use crate::common::{Depth, Seconds, GF};
 use crate::parser::{self, UDDFDoc, Mix, DiveElem, WaypointElem};
-use crate::dive::Dive;
+use crate::dive::{Dive, DiveConfig};
 
 #[derive(Debug)]
 pub struct Stats {
@@ -11,6 +11,7 @@ pub struct Stats {
     time_in_deco: Seconds,
     deco_dives_no: usize,
     gf_surf_max: GF,
+    gf_99_max: GF,
     gf_end_max: GF,
 }
 
@@ -31,9 +32,11 @@ impl Stats {
             deco_dives_no: 0,
             time_in_deco: 0,
             gf_surf_max: 0.,
+            gf_99_max: 0.,
             gf_end_max: 0.,
         };
         let UDDFData { dives_data, gas_mixes } = stats.extract_data_from_file(path)?;
+
         for dive_data in dives_data {
             let dive = stats.calc_dive_stats(&dive_data, &gas_mixes)?;
             stats.update_with_dive_data(dive);
@@ -62,16 +65,14 @@ impl Stats {
     }
 
     fn calc_dive_stats(&self, dive_data: &DiveElem, gas_mixes: &GasMixesData) -> Result<Dive, Box<dyn Error>> {
-        let mut dive = Dive::new();
+        // todo: set gradient factors from dive data with default fallback
+        let tmp_init_gf = (30, 70);
+        let mut dive = Dive::new(DiveConfig { gradient_factors: tmp_init_gf });
         dive.calc_dive_stats(dive_data, gas_mixes);
         Ok(dive)
     }
 
     fn update_with_dive_data(&mut self, dive: Dive) {
-        if dive.time_in_deco > 0 {
-            println!("{:?}\n", dive);
-        }
-
         // dives no
         self.dives_no += 1;
         // time
@@ -89,6 +90,9 @@ impl Stats {
         if dive.gf_surf_max > self.gf_surf_max {
             self.gf_surf_max = dive.gf_surf_max;
         }
+        if dive.gf_99_max > self.gf_99_max {
+            self.gf_99_max = dive.gf_99_max;
+        }
         if dive.gf_end > self.gf_end_max {
             self.gf_end_max = dive.gf_end;
         }
@@ -102,6 +106,7 @@ impl Stats {
         println!("Deco dives: {}", self.deco_dives_no);
         println!("Total time in deco: {}", Self::seconds_to_readable(self.time_in_deco));
         println!("Max surface GF: {}%", self.gf_surf_max.round());
+        println!("Max GF99: {}%", self.gf_99_max.round());
         println!("Max end GF: {}%", self.gf_end_max.round());
     }
 

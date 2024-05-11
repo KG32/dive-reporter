@@ -3,14 +3,16 @@
 version = 3
 
 [[package]]
-name = "buehlmann_deco"
-version = "0.1.0"
+name = "dive-deco"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "75463653535318f7ff3e93717bc63390a195179ad83b766a67a2939a360fb3cc"
 
 [[package]]
 name = "dive-reporter"
 version = "0.1.0"
 dependencies = [
- "buehlmann_deco",
+ "dive-deco",
  "quick-xml",
  "serde",
 ]

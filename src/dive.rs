@@ -1,4 +1,4 @@
-use buehlmann_deco::{DecoModel, Gas, Step, Pressure};
+use dive_deco::{BuehlmannConfig, BuehlmannModel, DecoModel, Gas, Pressure};
 
 use crate::common::{GradientFactorsSetting, GF};
 use crate::parser::WaypointElem;
@@ -16,16 +16,20 @@ pub struct Dive {
     pub depth_max: Depth,
     pub time_in_deco: Seconds,
     pub gf_surf_max: GF,
+    pub gf_99_max: GF,
     pub gf_end: GF,
     meta: DiveMeta,
 }
 
+pub struct DiveConfig {
+    pub gradient_factors: GradientFactorsSetting,
+}
+
 impl Dive {
-    pub fn new() -> Dive {
+    pub fn new(config: DiveConfig) -> Dive {
         let init_gas = Gas::new(0.21, 0.);
-        let init_gradient_factors: GradientFactorsSetting = (100., 100.);
         let dive_meta = DiveMeta {
-            gradient_factors: init_gradient_factors,
+            gradient_factors: config.gradient_factors,
             current_mix: init_gas,
         };
 
@@ -34,13 +38,15 @@ impl Dive {
             depth_max: 0.0,
             time_in_deco: 0,
             gf_surf_max: 0.,
+            gf_99_max: 0.,
             gf_end: 0.,
             meta: dive_meta,
         }
     }
 
     pub fn calc_dive_stats(&mut self, dive_data: &DiveElem, gas_mixes: &GasMixesData) {
-        let mut model = DecoModel::new();
+        let (gf_lo, gf_hi) = self.meta.gradient_factors;
+        let mut model = BuehlmannModel::new(BuehlmannConfig::new().gradient_factors(gf_lo, gf_hi));
         // calc by data point
         let mut last_waypoint_time: usize = 0;
         let dive_data_points = &dive_data.samples.waypoints;
@@ -62,7 +68,7 @@ impl Dive {
 
     fn process_data_point(
         &mut self,
-        model: &mut DecoModel,
+        model: &mut BuehlmannModel,
         data_point: &WaypointElem,
         last_waypoint_time: &usize,
         gas_mixes: &GasMixesData,
@@ -100,6 +106,11 @@ impl Dive {
         let gfs = model.gfs_current();
         self.register_gfs(gfs, &step_time);
 
+        // deco time
+        if model.ceiling() > 0. {
+            self.time_in_deco += step_time;
+        }
+
     }
 
     fn register_depth(&mut self, depth: &Depth) {
@@ -110,16 +121,15 @@ impl Dive {
     }
 
     fn register_gfs(&mut self, gfs: (Pressure, Pressure), time: &Seconds) {
-        let (gf_now, gf_surf) = gfs;
-        self.gf_end = gf_now;
+        let (gf_99, gf_surf) = gfs;
+        self.gf_end = gf_99;
         // GF surf
         if gf_surf > self.gf_surf_max {
             self.gf_surf_max = gf_surf;
         }
-        // deco
-        let (.., gf_high) = self.meta.gradient_factors;
-        if gf_surf > gf_high {
-            self.time_in_deco += time;
+        // GF99
+        if gf_99 > self.gf_99_max {
+            self.gf_99_max = gf_99;
         }
     }
 

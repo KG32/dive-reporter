@@ -41,12 +41,26 @@ pub struct RepetitionGroupElem {
     pub dives: Vec<DiveElem>,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct DiveElem {
     pub samples: SampleElem,
+    #[serde(rename = "informationbeforedive")]
+    pub information_before_dive: InfoElem,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
+pub struct InformationBeforeDiveElem {
+    #[serde(rename = "informationbeforedive")]
+    pub information_before_dive: InfoElem,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct InfoElem {
+    #[serde(rename = "surfacepressure")]
+    pub surface_pressure: Option<f32>,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct SampleElem {
     #[serde(rename = "waypoint")]
     pub waypoints: Vec<WaypointElem>,
