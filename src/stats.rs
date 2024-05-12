@@ -2,6 +2,7 @@ use std::{error::Error, fs, path::PathBuf, fmt::format};
 use crate::common::{Depth, Seconds, GF};
 use crate::parser::{self, UDDFDoc, Mix, DiveElem, WaypointElem};
 use crate::dive::{Dive, DiveConfig};
+use colored::*;
 
 #[derive(Debug)]
 pub struct Stats {
@@ -13,10 +14,13 @@ pub struct Stats {
     gf_surf_max: GF,
     gf_99_max: GF,
     gf_end_max: GF,
+    time_below: TimeBelowDepth,
 }
 
+pub type TimeBelowDepth = Vec<(Depth, Seconds)>;
 
 pub type GasMixesData = Option<Vec<Mix>>;
+
 pub struct UDDFData {
     gas_mixes: GasMixesData,
     dives_data: Vec<DiveElem>,
@@ -34,6 +38,7 @@ impl Stats {
             gf_surf_max: 0.,
             gf_99_max: 0.,
             gf_end_max: 0.,
+            time_below: vec![(40., 0)],
         };
         let UDDFData { dives_data, gas_mixes } = stats.extract_data_from_file(path)?;
 
@@ -99,15 +104,28 @@ impl Stats {
     }
 
     pub fn print(&self) {
-        println!("\n---------- STATS ----------");
-        println!("Dives: {}", self.dives_no);
-        println!("Total time: {}", Self::seconds_to_readable(self.total_time));
-        println!("Max depth: {}m", self.depth_max);
-        println!("Deco dives: {}", self.deco_dives_no);
-        println!("Total time in deco: {}", Self::seconds_to_readable(self.time_in_deco));
-        println!("Max surface GF: {}%", self.gf_surf_max.round());
-        println!("Max GF99: {}%", self.gf_99_max.round());
-        println!("Max end GF: {}%", self.gf_end_max.round());
+        println!("{}", "\n            STATS              ".underline());
+        println!("Dives:              {}", Self::to_colored(self.dives_no));
+        println!("Total time:         {}", Self::to_colored(Self::seconds_to_readable(self.total_time)));
+        println!("Max depth:          {}m", Self::to_colored(self.depth_max));
+        println!("Deco dives:         {}", Self::to_colored(self.deco_dives_no));
+        println!("Total time in deco: {}", Self::to_colored(Self::seconds_to_readable(self.time_in_deco)));
+        println!("Max surface GF:     {}%", Self::to_colored(self.gf_surf_max.round()));
+        println!("Max GF99:           {}%", Self::to_colored(self.gf_99_max.round()));
+        println!("Max end GF:         {}%", Self::to_colored(self.gf_end_max.round()));
+        self.print_time_below();
+    }
+
+    fn to_colored<T: std::fmt::Display>(v: T) -> ColoredString {
+        v.to_string().cyan().bold().dimmed()
+    }
+
+    fn print_time_below(&self) {
+        println!("Time below:");
+        for record in self.time_below.iter() {
+            let (depth, time) = record;
+            println!("  - {}m:            {}", depth, Self::to_colored(Self::seconds_to_readable(*time)));
+        }
     }
 
     fn seconds_to_readable(s: usize) -> String {

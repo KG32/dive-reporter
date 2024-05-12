@@ -1,5 +1,6 @@
 use std::{env, process, time};
 use dive_reporter::Config;
+use colored::*;
 
 fn main() {
     let timer = time::Instant::now();
@@ -15,5 +16,6 @@ fn main() {
         process::exit(1);
     }
 
-    println!("Elapsed: {:.2?}", timer.elapsed());
+    let elapsed = format!("Elapsed: {:.2?}", timer.elapsed());
+    println!("{}", elapsed.dimmed());
 }
