@@ -2,6 +2,7 @@ use dive_deco::{BuehlmannConfig, BuehlmannModel, DecoModel, Gas, Pressure};
 
 use crate::common::{GradientFactorsSetting, GF};
 use crate::parser::WaypointElem;
+use crate::stats::TimeBelowDepthData;
 use crate::{common::{Depth, Seconds}, parser::DiveElem, stats::GasMixesData};
 
 #[derive(Debug)]
@@ -18,11 +19,13 @@ pub struct Dive {
     pub gf_surf_max: GF,
     pub gf_99_max: GF,
     pub gf_end: GF,
+    pub time_below: TimeBelowDepthData,
     meta: DiveMeta,
 }
 
 pub struct DiveConfig {
     pub gradient_factors: GradientFactorsSetting,
+    pub treshold_depths: Vec<Depth>,
 }
 
 impl Dive {
@@ -40,6 +43,7 @@ impl Dive {
             gf_surf_max: 0.,
             gf_99_max: 0.,
             gf_end: 0.,
+            time_below: Self::construct_treshold_depths(config.treshold_depths),
             meta: dive_meta,
         }
     }
@@ -73,12 +77,12 @@ impl Dive {
         last_waypoint_time: &usize,
         gas_mixes: &GasMixesData,
     ) {
-        // depth
-        self.register_depth(&data_point.depth);
-
         // time
         let step_time = data_point.dive_time - last_waypoint_time;
         self.total_time += step_time;
+
+        // depth
+        self.register_depth(&data_point.depth, &step_time);
 
         // check for gas switch
         let switchmix = &data_point.switchmix;
@@ -113,10 +117,17 @@ impl Dive {
 
     }
 
-    fn register_depth(&mut self, depth: &Depth) {
+    fn register_depth(&mut self, depth: &Depth, step_time: &Seconds) {
         // max
         if depth > &self.depth_max {
             self.depth_max = *depth;
+        }
+        // treshold depths
+        for time_below_item in &mut self.time_below {
+            let (treshold_depth, mut current_time) = time_below_item;
+            if depth >= treshold_depth {
+                time_below_item.1 += step_time;
+            }
         }
     }
 
@@ -154,4 +165,13 @@ impl Dive {
         }
         gas
     }
+
+    fn construct_treshold_depths(treshold_config: Vec<Depth>) -> TimeBelowDepthData {
+        let mut time_below = vec![];
+        for depth in treshold_config {
+            time_below.push((depth, 0));
+        }
+        time_below
+    }
+
 }

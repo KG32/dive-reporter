@@ -14,10 +14,10 @@ pub struct Stats {
     gf_surf_max: GF,
     gf_99_max: GF,
     gf_end_max: GF,
-    time_below: TimeBelowDepth,
+    time_below: TimeBelowDepthData,
 }
 
-pub type TimeBelowDepth = Vec<(Depth, Seconds)>;
+pub type TimeBelowDepthData = Vec<(Depth, Seconds)>;
 
 pub type GasMixesData = Option<Vec<Mix>>;
 
@@ -38,7 +38,7 @@ impl Stats {
             gf_surf_max: 0.,
             gf_99_max: 0.,
             gf_end_max: 0.,
-            time_below: vec![(40., 0)],
+            time_below: vec![],
         };
         let UDDFData { dives_data, gas_mixes } = stats.extract_data_from_file(path)?;
 
@@ -72,7 +72,11 @@ impl Stats {
     fn calc_dive_stats(&self, dive_data: &DiveElem, gas_mixes: &GasMixesData) -> Result<Dive, Box<dyn Error>> {
         // todo: set gradient factors from dive data with default fallback
         let tmp_init_gf = (30, 70);
-        let mut dive = Dive::new(DiveConfig { gradient_factors: tmp_init_gf });
+        let tmp_treshold_depths: Vec<Depth> = vec![10., 20., 30., 40.];
+        let mut dive = Dive::new(DiveConfig {
+            gradient_factors: tmp_init_gf,
+            treshold_depths: tmp_treshold_depths,
+        });
         dive.calc_dive_stats(dive_data, gas_mixes);
         Ok(dive)
     }
@@ -101,18 +105,30 @@ impl Stats {
         if dive.gf_end > self.gf_end_max {
             self.gf_end_max = dive.gf_end;
         }
+        // time below
+        'outer: for dive_time_below in dive.time_below {
+            let (dive_treshold_depth, dive_treshold_time) = dive_time_below;
+            for global_time_below in &mut self.time_below {
+                let (global_treshold_depth, global_treshold_time) = global_time_below;
+                if dive_treshold_depth == *global_treshold_depth {
+                    global_time_below.1 += dive_treshold_time;
+                    continue 'outer;
+                }
+            }
+            self.time_below.push((dive_treshold_depth, dive_treshold_time));
+        }
     }
 
     pub fn print(&self) {
         println!("{}", "\n            STATS              ".underline());
         println!("Dives:              {}", Self::to_colored(self.dives_no));
         println!("Total time:         {}", Self::to_colored(Self::seconds_to_readable(self.total_time)));
-        println!("Max depth:          {}m", Self::to_colored(self.depth_max));
+        println!("Max depth:          {}{}", Self::to_colored(self.depth_max), Self::to_colored("m"));
         println!("Deco dives:         {}", Self::to_colored(self.deco_dives_no));
         println!("Total time in deco: {}", Self::to_colored(Self::seconds_to_readable(self.time_in_deco)));
-        println!("Max surface GF:     {}%", Self::to_colored(self.gf_surf_max.round()));
-        println!("Max GF99:           {}%", Self::to_colored(self.gf_99_max.round()));
-        println!("Max end GF:         {}%", Self::to_colored(self.gf_end_max.round()));
+        println!("Max surface GF:     {}{}", Self::to_colored(self.gf_surf_max.round()), Self::to_colored("%"));
+        println!("Max GF99:           {}{}", Self::to_colored(self.gf_99_max.round()), Self::to_colored("%"));
+        println!("Max end GF:         {}{}", Self::to_colored(self.gf_end_max.round()), Self::to_colored("%"));
         self.print_time_below();
     }
 
