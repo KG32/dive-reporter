@@ -18,8 +18,7 @@ impl Config {
         args.next();
         let path = match args.next() {
             Some(arg) => arg,
-            // None => return Err("Path missing"),
-            None => "/Users/kubagroblewski/Documents/dive-reporter-uddf/kg-ss/165-167.uddf".to_string()
+            None => return Err("Path missing"),
         };
         Ok(Config {
             path,
