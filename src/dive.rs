@@ -9,6 +9,7 @@ use crate::{common::{Depth, Seconds}, parser::DiveElem, stats::GasMixesData};
 pub struct DiveMeta {
     gradient_factors: GradientFactorsSetting,
     current_mix: Gas,
+    last_depth: Depth,
 }
 
 #[derive(Debug)]
@@ -34,6 +35,7 @@ impl Dive {
         let dive_meta = DiveMeta {
             gradient_factors: config.gradient_factors,
             current_mix: init_gas,
+            last_depth: 0.,
         };
 
         Dive {
@@ -64,10 +66,6 @@ impl Dive {
             // update last waypoint time
             last_waypoint_time = data_point.dive_time;
         }
-
-        // end dive GF
-        let (gf_end, ..) = model.gfs_current();
-        self.gf_end = gf_end;
     }
 
     fn process_data_point(
@@ -108,7 +106,7 @@ impl Dive {
 
         // GFs
         let gfs = model.gfs_current();
-        self.register_gfs(gfs, &step_time);
+        self.register_gfs(gfs, &step_time, &data_point.depth);
 
         // deco time
         if model.ceiling() > 0. {
@@ -131,9 +129,8 @@ impl Dive {
         }
     }
 
-    fn register_gfs(&mut self, gfs: (Pressure, Pressure), time: &Seconds) {
+    fn register_gfs(&mut self, gfs: (Pressure, Pressure), time: &Seconds, depth: &Depth) {
         let (gf_99, gf_surf) = gfs;
-        self.gf_end = gf_99;
         // GF surf
         if gf_surf > self.gf_surf_max {
             self.gf_surf_max = gf_surf;
@@ -142,6 +139,12 @@ impl Dive {
         if gf_99 > self.gf_99_max {
             self.gf_99_max = gf_99;
         }
+        // GF end
+        if *depth == 0. && self.meta.last_depth != 0. {
+            self.gf_end = gf_99;
+        }
+        // register last depth for end dive GF99 check
+        self.meta.last_depth = *depth;
     }
 
     fn update_time_in_deco(&mut self, time: Seconds) {
