@@ -45,8 +45,10 @@ impl Stats {
         let mut stats = Self::new();
         let path_meta = fs::metadata(path)?;
         if path_meta.is_file() {
+            println!("File: {}", path);
             stats.from_file(path)?;
         } else if path_meta.is_dir() {
+            println!("Directory: {}", path);
             stats.from_dir(path)?;
         } else {
             return Err("Unable to resolve file or directory".into())
@@ -56,7 +58,6 @@ impl Stats {
     }
 
     fn from_file(&mut self, path: &str) -> Result<(), Box<dyn Error>> {
-        // println!("\nFile: {}", path);
         let UDDFData { dives_data, gas_mixes } = self.extract_data_from_file(path)?;
         for dive_data in dives_data {
             let dive = self.calc_dive_stats(&dive_data, &gas_mixes)?;
@@ -66,8 +67,6 @@ impl Stats {
     }
 
     fn from_dir(&mut self, path: &str) -> Result<Vec<PathBuf>, Box<dyn Error>> {
-        // println!("\nDirectory: {}", path);
-
         let paths = Self::traverse_for_uddf(path)?;
         for path in &paths {
             self.from_file(&path.to_str().unwrap());
