@@ -27,9 +27,8 @@ pub struct UDDFData {
 }
 
 impl Stats {
-    pub fn from_file(path: &str) -> Result<Stats, Box<dyn Error>> {
-        println!("\nFile: {}", path);
-        let mut stats = Stats {
+    pub fn new() -> Self {
+        Self {
             dives_no: 0,
             total_time: 0,
             depth_max: 0.0,
@@ -39,19 +38,65 @@ impl Stats {
             gf_99_max: 0.,
             gf_end_max: 0.,
             time_below: vec![],
-        };
-        let UDDFData { dives_data, gas_mixes } = stats.extract_data_from_file(path)?;
+        }
+    }
 
-        for dive_data in dives_data {
-            let dive = stats.calc_dive_stats(&dive_data, &gas_mixes)?;
-            stats.update_with_dive_data(dive);
+    pub fn from_path(&self, path: &str) -> Result<Self, Box<dyn Error>> {
+        let mut stats = Self::new();
+        let path_meta = fs::metadata(path)?;
+        if path_meta.is_file() {
+            stats.from_file(path)?;
+        } else if path_meta.is_dir() {
+            stats.from_dir(path)?;
+        } else {
+            return Err("Unable to resolve file or directory".into())
         }
 
         Ok(stats)
     }
 
+    fn from_file(&mut self, path: &str) -> Result<(), Box<dyn Error>> {
+        // println!("\nFile: {}", path);
+        let UDDFData { dives_data, gas_mixes } = self.extract_data_from_file(path)?;
+        for dive_data in dives_data {
+            let dive = self.calc_dive_stats(&dive_data, &gas_mixes)?;
+            self.update_with_dive_data(dive);
+        }
+        Ok(())
+    }
+
+    fn from_dir(&mut self, path: &str) -> Result<Vec<PathBuf>, Box<dyn Error>> {
+        // println!("\nDirectory: {}", path);
+
+        let paths = Self::traverse_for_uddf(path)?;
+        for path in &paths {
+            self.from_file(&path.to_str().unwrap());
+        }
+
+        Ok(paths)
+    }
+
+    fn traverse_for_uddf(path: &str) -> Result<Vec<PathBuf>, Box<dyn Error>> {
+        let mut uddf_file_paths:Vec<PathBuf> = vec![];
+        let entries = fs::read_dir(path)?;
+        for entry in entries {
+            let entry = entry?;
+            let path = entry.path();
+            if path.is_dir() {
+                let mut traversal_res = Stats::traverse_for_uddf(path.to_str().unwrap())?;
+                uddf_file_paths.append(&mut traversal_res);
+            }
+            let extension = path.extension().unwrap_or_default();
+            if extension.to_ascii_lowercase() == "uddf" {
+                uddf_file_paths.push(path);
+            }
+        }
+
+        Ok(uddf_file_paths)
+    }
+
     fn extract_data_from_file(&self, path: &str) -> Result<UDDFData, Box<dyn Error>> {
-        println!("Extracting dives from UDDF");
+        // println!("Extracting dives from UDDF");
         let file = parser::parse_file(path)?;
 
         let gas_definitions = file.gas_definitions;
