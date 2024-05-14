@@ -56,7 +56,7 @@ impl Stats {
     }
 
     fn from_file(&mut self, path: &str) -> Result<(), Box<dyn Error>> {
-        println!("\nFile: {}", path);
+        // println!("\nFile: {}", path);
         let UDDFData { dives_data, gas_mixes } = self.extract_data_from_file(path)?;
         for dive_data in dives_data {
             let dive = self.calc_dive_stats(&dive_data, &gas_mixes)?;
@@ -66,10 +66,12 @@ impl Stats {
     }
 
     fn from_dir(&mut self, path: &str) -> Result<Vec<PathBuf>, Box<dyn Error>> {
-        println!("\nDirectory: {}", path);
+        // println!("\nDirectory: {}", path);
 
         let paths = Self::traverse_for_uddf(path)?;
-        dbg!(&paths);
+        for path in &paths {
+            self.from_file(&path.to_str().unwrap());
+        }
 
         Ok(paths)
     }
@@ -94,7 +96,7 @@ impl Stats {
     }
 
     fn extract_data_from_file(&self, path: &str) -> Result<UDDFData, Box<dyn Error>> {
-        println!("Extracting dives from UDDF");
+        // println!("Extracting dives from UDDF");
         let file = parser::parse_file(path)?;
 
         let gas_definitions = file.gas_definitions;
