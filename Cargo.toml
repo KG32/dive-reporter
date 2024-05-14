@@ -8,5 +8,8 @@ edition = "2021"
 [dependencies]
 colored = "2.1.0"
 dive-deco = "1.0.0"
+eframe = "0.27.2"
+futures = "0.3.30"
 quick-xml = {version = "0.31.0", features = ["serialize"] }
+rfd = "0.14.1"
 serde = { version = "1.0", features = ["derive"] }

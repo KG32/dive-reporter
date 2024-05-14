@@ -2,7 +2,9 @@ use std::{env, process, time};
 use dive_reporter::Config;
 use colored::*;
 
+
 fn main() {
+
     let timer = time::Instant::now();
 
     let args = env::args();

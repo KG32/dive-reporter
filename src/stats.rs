@@ -5,17 +5,20 @@ use crate::dive::{Dive, DiveConfig};
 use colored::*;
 
 #[derive(Debug)]
+
 pub struct Stats {
-    dives_no: usize,
-    total_time: Seconds,
-    depth_max: Depth,
-    time_in_deco: Seconds,
-    deco_dives_no: usize,
-    gf_surf_max: GF,
-    gf_99_max: GF,
-    gf_end_max: GF,
-    time_below: TimeBelowDepthData,
+    pub dives_no: usize,
+    pub total_time: Seconds,
+    pub depth_max: Depth,
+    pub time_in_deco: Seconds,
+    pub deco_dives_no: usize,
+    pub gf_surf_max: GF,
+    pub gf_99_max: GF,
+    pub gf_end_max: GF,
+    pub time_below: TimeBelowDepthData,
 }
+
+pub type StatsOutput = Vec<(String, String)>;
 
 pub type TimeBelowDepthData = Vec<(Depth, Seconds)>;
 
@@ -163,7 +166,7 @@ impl Stats {
         }
     }
 
-    pub fn print(&self) {
+    pub fn print_to_console(&self) {
         println!("{}", "\n            STATS              ".underline());
         println!("Dives:              {}", Self::to_colored(self.dives_no));
         println!("Total time:         {}", Self::to_colored(Self::seconds_to_readable(self.total_time)));
