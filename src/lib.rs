@@ -21,7 +21,8 @@ impl Config {
         args.next();
         let path = match args.next() {
             Some(arg) => arg,
-            None => return Err("Path missing"),
+            // None => return Err("Path missing"),
+            None => "".to_owned()
         };
         Ok(Config {
             path,

@@ -1,6 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
-use eframe::egui;
+use eframe::egui::{self, InnerResponse, Ui};
 use std::future::Future;
 use rfd::FileDialog;
 use crate::{dive, stats::{Stats, StatsOutput}};
@@ -32,21 +32,24 @@ impl eframe::App for App {
                 .pick_file();
 
                 if let Some(file_path) = file {
+                    // todo err handling
                     self.stats = Stats::new().from_path(file_path.to_str().unwrap()).unwrap();
-                    self.stats_output = vec![];
-                    self.stats_output.push(("Total dives".to_string(), self.stats.dives_no.to_string()));
-                    self.stats_output.push(("Total time".to_string(), self.stats.total_time.to_string()));
                 }
             }
 
-            ui.vertical(|ui| {
-                for stat in &self.stats_output {
-                    ui.horizontal(|ui| {
-                        ui.label(stat.0.to_owned());
-                        ui.label(stat.1.to_owned());
-                    });
-                }
-            });
+            let stats = &self.stats;
+            if stats.dives_no > 0 {
+                ui.vertical(|ui| {
+                    self.render_pair(ui, "Dives:", &stats.dives_no.to_string());
+                    self.render_pair(ui, "Total time:", &Stats::seconds_to_readable(stats.total_time));
+                    self.render_pair(ui, "Max depth", &stats.depth_max.to_string());
+                    self.render_pair(ui, "Deco dives:", &stats.deco_dives_no.to_string());
+                    self.render_pair(ui, "Total time in deco:", &&Stats::seconds_to_readable(stats.time_in_deco));
+                    self.render_pair(ui, "Max surface GF:", &stats.gf_surf_max.round().to_string());
+                    self.render_pair(ui, "Max GF99:", &stats.gf_99_max.round().to_string());
+                    self.render_pair(ui, "Max end GF:", &stats.gf_end_max.round().to_string());
+                });
+            }
         });
     }
 }
@@ -64,5 +67,12 @@ impl App {
                 Box::<App>::default()
             }),
         )
+    }
+
+    pub fn render_pair(&self, ui: &mut Ui, v1: &str, v2: &str) -> InnerResponse<()> {
+        ui.horizontal(|ui| {
+            ui.label(v1);
+            ui.label(v2);
+        })
     }
 }
