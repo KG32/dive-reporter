@@ -4,10 +4,13 @@ mod common;
 mod parser;
 mod dive;
 mod stats;
+mod app;
 
 use std::error::Error;
 
 use stats::Stats;
+use app::App;
+
 
 pub struct Config {
     pub path: String,
@@ -18,7 +21,8 @@ impl Config {
         args.next();
         let path = match args.next() {
             Some(arg) => arg,
-            None => return Err("Path missing"),
+            // None => return Err("Path missing"),
+            None => "".to_owned()
         };
         Ok(Config {
             path,
@@ -27,7 +31,8 @@ impl Config {
 }
 
 pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
-    let stats = Stats::new().from_path(&config.path)?;
-    stats.print();
+    App::default().init();
+    // let stats = Stats::new().from_path(&config.path)?;
+    // stats.print();
     Ok(())
 }
