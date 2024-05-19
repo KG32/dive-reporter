@@ -4,8 +4,7 @@ use crate::parser::{self, UDDFDoc, Mix, DiveElem, WaypointElem};
 use crate::dive::{Dive, DiveConfig};
 use colored::*;
 
-#[derive(Debug)]
-
+#[derive(Clone, Debug)]
 pub struct Stats {
     pub dives_no: usize,
     pub total_time: Seconds,

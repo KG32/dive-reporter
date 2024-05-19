@@ -1,4 +1,4 @@
-use dive_deco::{BuehlmannConfig, BuehlmannModel, DecoModel, Gas, Pressure};
+use dive_deco::{BuehlmannConfig, BuehlmannModel, DecoModel, Gas, Pressure, Supersaturation};
 
 use crate::common::{GradientFactorsSetting, GF};
 use crate::parser::WaypointElem;
@@ -105,8 +105,8 @@ impl Dive {
         model.step(&data_point.depth, &step_time, gas);
 
         // GFs
-        let gfs = model.gfs_current();
-        self.register_gfs(gfs, &step_time, &data_point.depth);
+        let Supersaturation { gf_99, gf_surf } = model.supersaturation();
+        self.register_gfs((gf_99, gf_surf), &step_time, &data_point.depth);
 
         // deco time
         if model.ceiling() > 0. {
