@@ -112,7 +112,6 @@ impl Dive {
         if model.ceiling() > 0. {
             self.time_in_deco += step_time;
         }
-
     }
 
     fn register_depth(&mut self, depth: &Depth, step_time: &Seconds) {
