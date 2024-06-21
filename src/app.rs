@@ -107,6 +107,18 @@ impl App {
                 self.run_stats(&file_path);
             }
         }
+        if ui.button("Open multiple files").clicked() {
+            let files = FileDialog::new()
+                .set_directory("/")
+                .pick_files();
+
+            if let Some(files_paths) = files {
+                for file_path in files_paths {
+                    self.run_stats(&file_path);
+                }
+            }
+        }
+
     }
 
     fn render_stats(&mut self, ui: &mut Ui, stats: &Stats) {
