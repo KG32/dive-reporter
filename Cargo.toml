@@ -2,6 +2,9 @@
 name = "dive-reporter"
 version = "0.2.0"
 edition = "2021"
+license = "MIT"
+description = "Dive logs analyser"
+repository = "https://github.com/KG32/dive-reporter.git"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
