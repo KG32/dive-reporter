@@ -55,7 +55,7 @@ impl Stats {
         } else {
             return Err("Unable to resolve file or directory".into())
         }
-
+        stats.print_to_console();
         Ok(stats)
     }
 
@@ -73,7 +73,6 @@ impl Stats {
         for path in &paths {
             self.from_file(&path.to_str().unwrap());
         }
-
         Ok(paths)
     }
 

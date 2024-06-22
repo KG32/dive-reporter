@@ -100,12 +100,25 @@ impl App {
     fn render_file_btns(&mut self, ui: &mut Ui) {
         if ui.button("📂 Open UDDF file").clicked() {
             let file = FileDialog::new()
-                .set_directory("/")
+                .set_directory("/Documents/dive-reporter-uddf")
                 .pick_file();
 
             if let Some(file_path) = file {
                 self.run_stats(&file_path);
             }
+        }
+        if ui.button("Open multiple files").clicked() {
+            let dirs = FileDialog::new()
+                .set_directory("/Documents/dive-reporter-uddf")
+                .pick_folders();
+
+            if let Some(dirs) = dirs {
+                for dir in dirs {
+                    dbg!(&dir);
+                    self.run_stats(&dir);
+                }
+            }
+
         }
     }
 
