@@ -944,7 +944,7 @@ checksum = "49a05b3ab1187d77d9616d72669f96aa8de0f141fd223de466030eca6fe2cc7a"
 
 [[package]]
 name = "dive-reporter"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "colored",
  "dive-deco",
