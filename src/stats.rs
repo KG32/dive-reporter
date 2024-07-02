@@ -189,7 +189,7 @@ impl Stats {
         }
     }
 
-    pub fn seconds_to_readable(s: usize) -> String {
+    pub fn seconds_to_readable(s: Seconds) -> String {
         let seconds = s % 60;
         let minutes = (s / 60) % 60;
         let hours = (s / 60) / 60;

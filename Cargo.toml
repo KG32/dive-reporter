@@ -10,7 +10,7 @@ repository = "https://github.com/KG32/dive-reporter.git"
 
 [dependencies]
 colored = "2.1.0"
-dive-deco = "1.3.2"
+dive-deco = "2.0.0"
 eframe = "0.27.2"
 futures = "0.3.30"
 quick-xml = {version = "0.31.0", features = ["serialize"] }

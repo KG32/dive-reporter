@@ -938,9 +938,9 @@ checksum = "bd0c93bb4b0c6d9b77f4435b0ae98c24d17f1c45b2ff844c6151a07256ca923b"
 
 [[package]]
 name = "dive-deco"
-version = "1.3.2"
+version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "49a05b3ab1187d77d9616d72669f96aa8de0f141fd223de466030eca6fe2cc7a"
+checksum = "0e8c64f545ca112878832dc208d5b2a36ac96facd529084c63beb9cb31e1a41a"
 
 [[package]]
 name = "dive-reporter"

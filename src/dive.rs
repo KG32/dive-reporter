@@ -54,13 +54,13 @@ impl Dive {
         let (gf_lo, gf_hi) = self.meta.gradient_factors;
         let mut model = BuehlmannModel::new(BuehlmannConfig::new().gradient_factors(gf_lo, gf_hi));
         // calc by data point
-        let mut last_waypoint_time: usize = 0;
+        let mut last_waypoint_time: Seconds = 0;
         let dive_data_points = &dive_data.samples.waypoints;
         for data_point in dive_data_points {
             self.process_data_point(
                 &mut model,
                 &data_point,
-                &last_waypoint_time,
+                last_waypoint_time,
                 &gas_mixes,
             );
             // update last waypoint time
@@ -72,11 +72,11 @@ impl Dive {
         &mut self,
         model: &mut BuehlmannModel,
         data_point: &WaypointElem,
-        last_waypoint_time: &usize,
+        last_waypoint_time: Seconds,
         gas_mixes: &GasMixesData,
     ) {
         // time
-        let step_time = data_point.dive_time - last_waypoint_time;
+        let step_time: Seconds = data_point.dive_time - last_waypoint_time;
         self.total_time += step_time;
 
         // depth
@@ -102,7 +102,7 @@ impl Dive {
 
         // deco model step
         let gas = &self.meta.current_mix;
-        model.step(&data_point.depth, &step_time, gas);
+        model.step(data_point.depth, step_time, gas);
 
         // GFs
         let Supersaturation { gf_99, gf_surf } = model.supersaturation();
