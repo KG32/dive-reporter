@@ -1,11 +1,13 @@
-use std::{error::Error, fs, path::PathBuf, fmt::format};
 use crate::common::{Depth, Seconds, GF};
-use crate::parser::{self, UDDFDoc, Mix, DiveElem, WaypointElem};
 use crate::dive::{Dive, DiveConfig};
+use crate::parser::{self, DiveElem, Mix, UDDFDoc, WaypointElem};
 use colored::*;
+use rayon::prelude::*;
+use std::sync::{Arc, Mutex};
+use std::{error::Error, fmt::format, fs, path::PathBuf};
 
-#[derive(Clone, Debug)]
-pub struct Stats {
+#[derive(Clone, Debug, Default)]
+pub struct StatsData {
     pub dives_no: usize,
     pub total_time: Seconds,
     pub depth_max: Depth,
@@ -15,6 +17,11 @@ pub struct Stats {
     pub gf_99_max: GF,
     pub gf_end_max: GF,
     pub time_below: TimeBelowDepthData,
+}
+
+#[derive(Clone, Debug)]
+pub struct Stats {
+    pub stats_data: Arc<Mutex<StatsData>>,
 }
 
 pub type StatsOutput = Vec<(String, String)>;
@@ -31,15 +38,7 @@ pub struct UDDFData {
 impl Stats {
     pub fn new() -> Self {
         Self {
-            dives_no: 0,
-            total_time: 0,
-            depth_max: 0.0,
-            deco_dives_no: 0,
-            time_in_deco: 0,
-            gf_surf_max: 0.,
-            gf_99_max: 0.,
-            gf_end_max: 0.,
-            time_below: vec![],
+            stats_data: Arc::new(Mutex::new(StatsData::default())),
         }
     }
 
@@ -53,18 +52,21 @@ impl Stats {
             println!("Directory: {}", path);
             stats.from_dir(path)?;
         } else {
-            return Err("Unable to resolve file or directory".into())
+            return Err("Unable to resolve file or directory".into());
         }
         stats.print_to_console();
         Ok(stats)
     }
 
     fn from_file(&mut self, path: &str) -> Result<(), Box<dyn Error>> {
-        let UDDFData { dives_data, gas_mixes } = self.extract_data_from_file(path)?;
-        for dive_data in dives_data {
-            let dive = self.calc_dive_stats(&dive_data, &gas_mixes)?;
+        let UDDFData {
+            dives_data,
+            gas_mixes,
+        } = self.extract_data_from_file(path)?;
+        dives_data.par_iter().for_each(|dd| {
+            let dive = self.calc_dive_stats(&dd, &gas_mixes).unwrap();
             self.update_with_dive_data(dive);
-        }
+        });
         Ok(())
     }
 
@@ -77,7 +79,7 @@ impl Stats {
     }
 
     fn traverse_for_uddf(path: &str) -> Result<Vec<PathBuf>, Box<dyn Error>> {
-        let mut uddf_file_paths:Vec<PathBuf> = vec![];
+        let mut uddf_file_paths: Vec<PathBuf> = vec![];
         let entries = fs::read_dir(path)?;
         for entry in entries {
             let entry = entry?;
@@ -101,9 +103,7 @@ impl Stats {
 
         let gas_definitions = file.gas_definitions;
         let mut dives: Vec<DiveElem> = vec![];
-        let repetition_groups = file
-            .profile_data
-            .repetition_group;
+        let repetition_groups = file.profile_data.repetition_group;
         for mut group in repetition_groups {
             dives.append(&mut group.dives);
         }
@@ -114,7 +114,11 @@ impl Stats {
         })
     }
 
-    fn calc_dive_stats(&self, dive_data: &DiveElem, gas_mixes: &GasMixesData) -> Result<Dive, Box<dyn Error>> {
+    fn calc_dive_stats(
+        &self,
+        dive_data: &DiveElem,
+        gas_mixes: &GasMixesData,
+    ) -> Result<Dive, Box<dyn Error>> {
         // todo: set gradient factors from dive data with default fallback
         let tmp_init_gf = (30, 70);
         let tmp_treshold_depths: Vec<Depth> = vec![10., 20., 30., 40.];
@@ -126,66 +130,103 @@ impl Stats {
         Ok(dive)
     }
 
-    fn update_with_dive_data(&mut self, dive: Dive) {
+    fn update_with_dive_data(&self, dive: Dive) {
+        let stats_data_arc = Arc::clone(&self.stats_data);
+        let mut stats_data = stats_data_arc.lock().unwrap();
+
         // dives no
-        self.dives_no += 1;
+        stats_data.dives_no += 1;
         // time
-        self.total_time += dive.total_time;
+        stats_data.total_time += dive.total_time;
         // depth
-        if dive.depth_max > self.depth_max {
-            self.depth_max = dive.depth_max;
+        if dive.depth_max > stats_data.depth_max {
+            stats_data.depth_max = dive.depth_max;
         }
         // time in deco
         if dive.time_in_deco > 0 {
-            self.time_in_deco += dive.time_in_deco;
-            self.deco_dives_no += 1;
+            stats_data.time_in_deco += dive.time_in_deco;
+            stats_data.deco_dives_no += 1;
         }
         // GFs
-        if dive.gf_surf_max > self.gf_surf_max {
-            self.gf_surf_max = dive.gf_surf_max;
+        if dive.gf_surf_max > stats_data.gf_surf_max {
+            stats_data.gf_surf_max = dive.gf_surf_max;
         }
-        if dive.gf_99_max > self.gf_99_max {
-            self.gf_99_max = dive.gf_99_max;
+        if dive.gf_99_max > stats_data.gf_99_max {
+            stats_data.gf_99_max = dive.gf_99_max;
         }
-        if dive.gf_end > self.gf_end_max {
-            self.gf_end_max = dive.gf_end;
+        if dive.gf_end > stats_data.gf_end_max {
+            stats_data.gf_end_max = dive.gf_end;
         }
         // time below
         'outer: for dive_time_below in dive.time_below {
             let (dive_treshold_depth, dive_treshold_time) = dive_time_below;
-            for global_time_below in &mut self.time_below {
+            for global_time_below in &mut stats_data.time_below {
                 let (global_treshold_depth, global_treshold_time) = global_time_below;
                 if dive_treshold_depth == *global_treshold_depth {
                     global_time_below.1 += dive_treshold_time;
                     continue 'outer;
                 }
             }
-            self.time_below.push((dive_treshold_depth, dive_treshold_time));
+            stats_data
+                .time_below
+                .push((dive_treshold_depth, dive_treshold_time));
         }
     }
 
     pub fn print_to_console(&self) {
+        let stats_data_arc = Arc::clone(&self.stats_data);
+        let stats = stats_data_arc.lock().unwrap();
+
         println!("{}", "\n            STATS              ".underline());
-        println!("Dives:              {}", Self::to_colored(self.dives_no));
-        println!("Total time:         {}", Self::to_colored(Self::seconds_to_readable(self.total_time)));
-        println!("Max depth:          {}{}", Self::to_colored(self.depth_max), Self::to_colored("m"));
-        println!("Deco dives:         {}", Self::to_colored(self.deco_dives_no));
-        println!("Total time in deco: {}", Self::to_colored(Self::seconds_to_readable(self.time_in_deco)));
-        println!("Max surface GF:     {}{}", Self::to_colored(self.gf_surf_max.round()), Self::to_colored("%"));
-        println!("Max GF99:           {}{}", Self::to_colored(self.gf_99_max.round()), Self::to_colored("%"));
-        println!("Max end GF:         {}{}", Self::to_colored(self.gf_end_max.round()), Self::to_colored("%"));
-        self.print_time_below();
+        println!("Dives:              {}", Self::to_colored(stats.dives_no));
+        println!(
+            "Total time:         {}",
+            Self::to_colored(Self::seconds_to_readable(stats.total_time))
+        );
+        println!(
+            "Max depth:          {}{}",
+            Self::to_colored(stats.depth_max),
+            Self::to_colored("m")
+        );
+        println!(
+            "Deco dives:         {}",
+            Self::to_colored(stats.deco_dives_no)
+        );
+        println!(
+            "Total time in deco: {}",
+            Self::to_colored(Self::seconds_to_readable(stats.time_in_deco))
+        );
+        println!(
+            "Max surface GF:     {}{}",
+            Self::to_colored(stats.gf_surf_max.round()),
+            Self::to_colored("%")
+        );
+        println!(
+            "Max GF99:           {}{}",
+            Self::to_colored(stats.gf_99_max.round()),
+            Self::to_colored("%")
+        );
+        println!(
+            "Max end GF:         {}{}",
+            Self::to_colored(stats.gf_end_max.round()),
+            Self::to_colored("%")
+        );
+        self.print_time_below(&stats.time_below);
     }
 
     fn to_colored<T: std::fmt::Display>(v: T) -> ColoredString {
         v.to_string().cyan().bold().dimmed()
     }
 
-    fn print_time_below(&self) {
+    fn print_time_below(&self, time_below: &TimeBelowDepthData) {
         println!("Time below:");
-        for record in self.time_below.iter() {
+        for record in time_below.iter() {
             let (depth, time) = record;
-            println!("  - {}m:            {}", depth, Self::to_colored(Self::seconds_to_readable(*time)));
+            println!(
+                "  - {}m:            {}",
+                depth,
+                Self::to_colored(Self::seconds_to_readable(*time))
+            );
         }
     }
 
