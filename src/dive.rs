@@ -3,7 +3,11 @@ use dive_deco::{BuehlmannConfig, BuehlmannModel, DecoModel, Gas, Pressure, Super
 use crate::common::{GradientFactorsSetting, GF};
 use crate::parser::WaypointElem;
 use crate::stats::TimeBelowDepthData;
-use crate::{common::{Depth, Seconds}, parser::DiveElem, stats::GasMixesData};
+use crate::{
+    common::{Depth, Seconds},
+    parser::DiveElem,
+    stats::GasMixesData,
+};
 
 #[derive(Debug)]
 pub struct DiveMeta {
@@ -52,17 +56,16 @@ impl Dive {
 
     pub fn calc_dive_stats(&mut self, dive_data: &DiveElem, gas_mixes: &GasMixesData) {
         let (gf_lo, gf_hi) = self.meta.gradient_factors;
-        let mut model = BuehlmannModel::new(BuehlmannConfig::new().gradient_factors(gf_lo, gf_hi));
+        let mut model = BuehlmannModel::new(
+            BuehlmannConfig::new()
+                .with_gradient_factors(gf_lo, gf_hi)
+                .with_ceiling_type(dive_deco::CeilingType::Adaptive),
+        );
         // calc by data point
         let mut last_waypoint_time: Seconds = 0;
         let dive_data_points = &dive_data.samples.waypoints;
         for data_point in dive_data_points {
-            self.process_data_point(
-                &mut model,
-                &data_point,
-                last_waypoint_time,
-                &gas_mixes,
-            );
+            self.process_data_point(&mut model, &data_point, last_waypoint_time, &gas_mixes);
             // update last waypoint time
             last_waypoint_time = data_point.dive_time;
         }
@@ -91,13 +94,13 @@ impl Dive {
                 match gas {
                     Some(gas) => {
                         self.meta.current_mix = gas;
-                    },
+                    }
                     None => {
                         panic!("Gas not found");
                     }
                 }
-            },
-            None => ()
+            }
+            None => (),
         }
 
         // deco model step
@@ -160,7 +163,7 @@ impl Dive {
                         gas = Some(Gas::new(mix_definition.o2, mix_definition.he.unwrap_or(0.)));
                     }
                 }
-            },
+            }
             None => {
                 panic!("No gas mixes, can't process switch");
             }
@@ -175,5 +178,4 @@ impl Dive {
         }
         time_below
     }
-
 }

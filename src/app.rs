@@ -1,10 +1,13 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
+use crate::{
+    dive,
+    stats::{Stats, StatsData, StatsOutput},
+};
 use eframe::egui::{self, InnerResponse, Ui};
-use std::{future::Future, path::PathBuf};
-use std::error::Error;
 use rfd::FileDialog;
-use crate::{dive, stats::{Stats, StatsOutput}};
+use std::{error::Error, sync::Arc};
+use std::{future::Future, path::PathBuf};
 
 #[derive(Clone)]
 pub struct App {
@@ -17,7 +20,7 @@ pub struct App {
 
 #[derive(Clone)]
 struct AppState {
-    error: Option<AppError>
+    error: Option<AppError>,
 }
 
 #[derive(Clone)]
@@ -39,11 +42,9 @@ impl Default for App {
             stats_output: vec![],
             config: AppConfig {
                 path: None,
-                gradient_factors: (30, 70)
+                gradient_factors: (30, 70),
             },
-            state: AppState {
-                error: None,
-            }
+            state: AppState { error: None },
         }
     }
 }
@@ -55,7 +56,11 @@ impl eframe::App for App {
             ui.separator();
 
             // config
-            self.render_pair(ui, "Path:", &self.config.path.clone().unwrap_or("-".to_string()));
+            self.render_pair(
+                ui,
+                "Path:",
+                &self.config.path.clone().unwrap_or("-".to_string()),
+            );
             ui.separator();
 
             // open file btn
@@ -66,12 +71,15 @@ impl eframe::App for App {
             // stats container
             match &self.state.error {
                 None => {
-                    let stats = self.stats.clone();
+                    // let stats = self.stats.clone();
+                    let stats_arc = Arc::clone(&self.stats.stats_data);
+                    let stats_guard = stats_arc.lock().unwrap();
+                    let stats = stats_guard;
                     if stats.dives_no > 0 {
                         self.state.error = None;
-                        self.render_stats(ui, &stats)
+                        self.render_stats(ui, &*stats)
                     }
-                },
+                }
                 Some(err) => {
                     self.render_error(ui, &err);
                 }
@@ -91,9 +99,7 @@ impl App {
         eframe::run_native(
             "Dive reporter",
             options,
-            Box::new(|_cc| {
-                Box::<App>::default()
-            }),
+            Box::new(|_cc| Box::<App>::default()),
         )
     }
 
@@ -118,11 +124,10 @@ impl App {
                     self.run_stats(&dir);
                 }
             }
-
         }
     }
 
-    fn render_stats(&mut self, ui: &mut Ui, stats: &Stats) {
+    fn render_stats(&mut self, ui: &mut Ui, stats: &StatsData) {
         let depth_max = stats.depth_max.to_string();
         let gf_surf_max = stats.gf_surf_max.round().to_string();
         let gf_99_max = stats.gf_99_max.round().to_string();
@@ -130,10 +135,18 @@ impl App {
 
         ui.vertical(|ui| {
             self.render_pair(ui, "Dives:", &stats.dives_no.to_string());
-            self.render_pair(ui, "Total time:", &Stats::seconds_to_readable(stats.total_time));
+            self.render_pair(
+                ui,
+                "Total time:",
+                &Stats::seconds_to_readable(stats.total_time),
+            );
             self.render_pair(ui, "Max depth", &format!("{depth_max}m"));
             self.render_pair(ui, "Deco dives:", &stats.deco_dives_no.to_string());
-            self.render_pair(ui, "Total time in deco:", &Stats::seconds_to_readable(stats.time_in_deco));
+            self.render_pair(
+                ui,
+                "Total time in deco:",
+                &Stats::seconds_to_readable(stats.time_in_deco),
+            );
             self.render_pair(ui, "Max surface GF:", &format!("{gf_surf_max}%"));
             self.render_pair(ui, "Max GF99:", &format!("{gf_99_max}%"));
             self.render_pair(ui, "Max end GF:", &format!("{gf_end_max}%"));
@@ -141,7 +154,11 @@ impl App {
             for record in stats.time_below.iter() {
                 let (depth, time) = record;
                 ui.indent("", |ui| {
-                    self.render_pair(ui, &format!("-{depth}:"), &Stats::seconds_to_readable(*time));
+                    self.render_pair(
+                        ui,
+                        &format!("-{depth}:"),
+                        &Stats::seconds_to_readable(*time),
+                    );
                 });
             }
         });
@@ -177,10 +194,10 @@ impl App {
                     self.state.error = None;
                 }
                 self.stats = stats
-            },
+            }
             Err(err) => {
                 let app_err = AppError {
-                    text: err.to_string()
+                    text: err.to_string(),
                 };
                 self.state.error = Some(app_err);
             }
