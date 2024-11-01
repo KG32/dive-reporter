@@ -70,12 +70,19 @@ impl Stats {
         Ok(())
     }
 
-    fn from_dir(&mut self, path: &str) -> Result<Vec<PathBuf>, Box<dyn Error>> {
+    fn from_dir(&mut self, path: &str) -> Result<(), Box<dyn Error>> {
         let paths = Self::traverse_for_uddf(path)?;
-        for path in &paths {
-            self.from_file(&path.to_str().unwrap());
-        }
-        Ok(paths)
+        paths.par_iter().for_each(|path| {
+            let UDDFData {
+                dives_data,
+                gas_mixes,
+            } = self.extract_data_from_file(path.to_str().unwrap()).unwrap();
+            dives_data.par_iter().for_each(|dd| {
+                let dive = self.calc_dive_stats(&dd, &gas_mixes).unwrap();
+                self.update_with_dive_data(dive);
+            });
+        });
+        Ok(())
     }
 
     fn traverse_for_uddf(path: &str) -> Result<Vec<PathBuf>, Box<dyn Error>> {
